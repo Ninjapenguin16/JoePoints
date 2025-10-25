@@ -1,5 +1,0 @@
-Start ./bin/server from this directory, not ./bin
-
-Webserver and API are on port 8080 over http
-
-requires libmicrohttpd, libsqlite3, and libjson-c
