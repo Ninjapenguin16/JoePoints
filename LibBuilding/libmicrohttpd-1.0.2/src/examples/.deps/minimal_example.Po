@@ -1,0 +1,77 @@
+minimal_example.o: minimal_example.c ../../src/include/platform.h \
+ ../../src/include/mhd_options.h ../../MHD_config.h \
+ /usr/include/x86_64-linux-musl/stdio.h \
+ /usr/include/x86_64-linux-musl/features.h \
+ /usr/include/x86_64-linux-musl/bits/alltypes.h \
+ /usr/include/x86_64-linux-musl/stdlib.h \
+ /usr/include/x86_64-linux-musl/alloca.h \
+ /usr/include/x86_64-linux-musl/stdint.h \
+ /usr/include/x86_64-linux-musl/bits/stdint.h \
+ /usr/include/x86_64-linux-musl/string.h \
+ /usr/include/x86_64-linux-musl/strings.h \
+ /usr/include/x86_64-linux-musl/unistd.h \
+ /usr/include/x86_64-linux-musl/bits/posix.h \
+ /usr/include/x86_64-linux-musl/stdarg.h \
+ /usr/include/x86_64-linux-musl/errno.h \
+ /usr/include/x86_64-linux-musl/bits/errno.h \
+ /usr/include/x86_64-linux-musl/fcntl.h \
+ /usr/include/x86_64-linux-musl/bits/fcntl.h \
+ /usr/include/x86_64-linux-musl/signal.h \
+ /usr/include/x86_64-linux-musl/bits/signal.h \
+ /usr/include/x86_64-linux-musl/stddef.h \
+ /usr/include/x86_64-linux-musl/sys/select.h \
+ /usr/include/x86_64-linux-musl/sys/types.h \
+ /usr/include/x86_64-linux-musl/endian.h \
+ /usr/include/x86_64-linux-musl/sys/time.h \
+ /usr/include/x86_64-linux-musl/sys/stat.h \
+ /usr/include/x86_64-linux-musl/bits/stat.h \
+ /usr/include/x86_64-linux-musl/sys/msg.h \
+ /usr/include/x86_64-linux-musl/sys/ipc.h \
+ /usr/include/x86_64-linux-musl/bits/ipc.h \
+ /usr/include/x86_64-linux-musl/bits/ipcstat.h \
+ /usr/include/x86_64-linux-musl/bits/msg.h \
+ /usr/include/x86_64-linux-musl/sys/mman.h \
+ /usr/include/x86_64-linux-musl/bits/mman.h \
+ /usr/include/x86_64-linux-musl/time.h \
+ /usr/include/x86_64-linux-musl/sys/socket.h \
+ /usr/include/x86_64-linux-musl/bits/socket.h \
+ ../../src/include/microhttpd.h
+../../src/include/platform.h:
+../../src/include/mhd_options.h:
+../../MHD_config.h:
+/usr/include/x86_64-linux-musl/stdio.h:
+/usr/include/x86_64-linux-musl/features.h:
+/usr/include/x86_64-linux-musl/bits/alltypes.h:
+/usr/include/x86_64-linux-musl/stdlib.h:
+/usr/include/x86_64-linux-musl/alloca.h:
+/usr/include/x86_64-linux-musl/stdint.h:
+/usr/include/x86_64-linux-musl/bits/stdint.h:
+/usr/include/x86_64-linux-musl/string.h:
+/usr/include/x86_64-linux-musl/strings.h:
+/usr/include/x86_64-linux-musl/unistd.h:
+/usr/include/x86_64-linux-musl/bits/posix.h:
+/usr/include/x86_64-linux-musl/stdarg.h:
+/usr/include/x86_64-linux-musl/errno.h:
+/usr/include/x86_64-linux-musl/bits/errno.h:
+/usr/include/x86_64-linux-musl/fcntl.h:
+/usr/include/x86_64-linux-musl/bits/fcntl.h:
+/usr/include/x86_64-linux-musl/signal.h:
+/usr/include/x86_64-linux-musl/bits/signal.h:
+/usr/include/x86_64-linux-musl/stddef.h:
+/usr/include/x86_64-linux-musl/sys/select.h:
+/usr/include/x86_64-linux-musl/sys/types.h:
+/usr/include/x86_64-linux-musl/endian.h:
+/usr/include/x86_64-linux-musl/sys/time.h:
+/usr/include/x86_64-linux-musl/sys/stat.h:
+/usr/include/x86_64-linux-musl/bits/stat.h:
+/usr/include/x86_64-linux-musl/sys/msg.h:
+/usr/include/x86_64-linux-musl/sys/ipc.h:
+/usr/include/x86_64-linux-musl/bits/ipc.h:
+/usr/include/x86_64-linux-musl/bits/ipcstat.h:
+/usr/include/x86_64-linux-musl/bits/msg.h:
+/usr/include/x86_64-linux-musl/sys/mman.h:
+/usr/include/x86_64-linux-musl/bits/mman.h:
+/usr/include/x86_64-linux-musl/time.h:
+/usr/include/x86_64-linux-musl/sys/socket.h:
+/usr/include/x86_64-linux-musl/bits/socket.h:
+../../src/include/microhttpd.h:

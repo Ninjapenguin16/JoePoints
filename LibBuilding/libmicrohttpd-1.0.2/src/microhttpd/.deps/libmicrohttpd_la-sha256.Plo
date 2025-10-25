@@ -1,0 +1,43 @@
+libmicrohttpd_la-sha256.lo: sha256.c sha256.h \
+ ../../src/include/mhd_options.h ../../MHD_config.h \
+ /usr/include/x86_64-linux-musl/stdint.h \
+ /usr/include/x86_64-linux-musl/bits/alltypes.h \
+ /usr/include/x86_64-linux-musl/bits/stdint.h \
+ /usr/include/x86_64-linux-musl/stddef.h \
+ /usr/include/x86_64-linux-musl/string.h \
+ /usr/include/x86_64-linux-musl/features.h \
+ /usr/include/x86_64-linux-musl/strings.h mhd_bithelpers.h \
+ mhd_byteorder.h /usr/include/x86_64-linux-musl/endian.h \
+ /usr/include/x86_64-linux-musl/sys/param.h \
+ /usr/include/x86_64-linux-musl/sys/resource.h \
+ /usr/include/x86_64-linux-musl/sys/time.h \
+ /usr/include/x86_64-linux-musl/sys/select.h \
+ /usr/include/x86_64-linux-musl/bits/resource.h \
+ /usr/include/x86_64-linux-musl/limits.h \
+ /usr/include/x86_64-linux-musl/bits/limits.h \
+ /usr/include/x86_64-linux-musl/sys/types.h mhd_align.h \
+ /usr/include/x86_64-linux-musl/stdalign.h mhd_assert.h
+sha256.h:
+../../src/include/mhd_options.h:
+../../MHD_config.h:
+/usr/include/x86_64-linux-musl/stdint.h:
+/usr/include/x86_64-linux-musl/bits/alltypes.h:
+/usr/include/x86_64-linux-musl/bits/stdint.h:
+/usr/include/x86_64-linux-musl/stddef.h:
+/usr/include/x86_64-linux-musl/string.h:
+/usr/include/x86_64-linux-musl/features.h:
+/usr/include/x86_64-linux-musl/strings.h:
+mhd_bithelpers.h:
+mhd_byteorder.h:
+/usr/include/x86_64-linux-musl/endian.h:
+/usr/include/x86_64-linux-musl/sys/param.h:
+/usr/include/x86_64-linux-musl/sys/resource.h:
+/usr/include/x86_64-linux-musl/sys/time.h:
+/usr/include/x86_64-linux-musl/sys/select.h:
+/usr/include/x86_64-linux-musl/bits/resource.h:
+/usr/include/x86_64-linux-musl/limits.h:
+/usr/include/x86_64-linux-musl/bits/limits.h:
+/usr/include/x86_64-linux-musl/sys/types.h:
+mhd_align.h:
+/usr/include/x86_64-linux-musl/stdalign.h:
+mhd_assert.h:

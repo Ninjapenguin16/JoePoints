@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>JoePoints Leaderboard</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #f4f4f9;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        align-items: center;
+    }
+
+    header {
+        text-align: center;
+        padding: 2em 1em 1em 1em;
+    }
+
+    header h1 {
+        margin: 0;
+        font-size: 2.5em;
+        color: #333;
+    }
+
+    #joe-image {
+        display: block;
+        margin: 1em auto;
+        width: 150px;
+        height: 150px;
+        background: url('joe.png') no-repeat center/contain;
+    }
+
+    table {
+        width: 90%;
+        max-width: 800px;
+        border-collapse: collapse;
+        margin: 1em 0;
+        background: #fff;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    th, td {
+        border: 1px solid #ddd;
+        padding: 0.75em 1em;
+        text-align: center;
+    }
+
+    th {
+        background-color: #6c63ff;
+        color: #fff;
+        font-weight: bold;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+
+    tr:hover {
+        background-color: #e0e0ff;
+    }
+
+    button {
+        margin: 1em;
+        padding: 0.75em 1.5em;
+        font-size: 1em;
+        border: none;
+        background-color: #6c63ff;
+        color: #fff;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    button:hover {
+        background-color: #5750d2;
+    }
+
+    footer {
+        margin-top: auto;
+        padding: 1em;
+        text-align: center;
+        font-size: 0.9em;
+        color: #666;
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>JoePoints Leaderboard</h1>
+    <div id="joe-image"></div>
+</header>
+
+<table id="leaderboard">
+    <thead>
+        <tr>
+            <th>Position</th>
+            <th>Full Name</th>
+            <th>Points</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<button onclick="location.href='/cli'">Go to CLI</button>
+
+<footer>
+    &copy; 2025 JoePoints LLC
+</footer>
+
+<script>
+async function fetchLeaderboard() {
+    try {
+        const resp = await fetch('/api/getall');
+        const users = await resp.json();
+
+        // Sort by points descending
+        users.sort((a, b) => b.points - a.points);
+
+        const tbody = document.querySelector('#leaderboard tbody');
+        tbody.innerHTML = '';
+        users.forEach((u, i) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td>${i + 1}</td><td>${u.first} ${u.last}</td><td>${u.points}</td>`;
+            tbody.appendChild(row);
+        });
+    } catch (err) {
+        console.error('Error fetching leaderboard:', err);
+        const tbody = document.querySelector('#leaderboard tbody');
+        tbody.innerHTML = '<tr><td colspan="3">Failed to load leaderboard</td></tr>';
+    }
+}
+
+// Initial fetch
+fetchLeaderboard();
+// Refresh leaderboard every 5 seconds
+setInterval(fetchLeaderboard, 5000);
+</script>
+
+</body>
+</html>

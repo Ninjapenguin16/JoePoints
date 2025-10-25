@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>JoePoints CLI</title>
+<style>
+body { background: black; color: #00ff00; font-family: monospace; margin: 0; padding: 0; }
+#apikey-container { padding: 10px; }
+#terminal { padding: 10px; height: 85vh; overflow-y: auto; white-space: pre-wrap; }
+#input-line { display: flex; padding: 10px; }
+#input { background: black; color: #00ff00; border: none; flex: 1; font-family: monospace; font-size: 1em; outline: none; }
+#apikey { background: black; color: #00ff00; border: 1px solid #00ff00; font-family: monospace; font-size: 1em; padding: 2px 5px; }
+label { margin-right: 5px; }
+</style>
+</head>
+<body>
+
+<div id="apikey-container">
+<label for="apikey">API Key:</label>
+<input type="text" id="apikey" placeholder="Enter API key">
+</div>
+
+<div id="terminal"></div>
+<div id="input-line">
+<input type="text" id="input" placeholder="Enter command" autofocus>
+</div>
+
+<script>
+const terminal = document.getElementById('terminal');
+const input = document.getElementById('input');
+const apikeyInput = document.getElementById('apikey');
+
+let apiKey = '';
+
+apikeyInput.addEventListener('input', () => {
+    apiKey = apikeyInput.value.trim();
+});
+
+function print(text) {
+    terminal.innerText += text + '\n';
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
+function clearTerminal() {
+    terminal.innerText = '';
+}
+
+async function fetchJSON(url, options) {
+    if (!options) options = {};
+    if (!options.headers) options.headers = {};
+    if (apiKey) options.headers['Authorization'] = `Bearer ${apiKey}`;
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || response.statusText);
+    }
+    return response.json();
+}
+
+function showHelp() {
+    print(`Available commands:
+help
+genkey IDENTIFIER
+addperson FIRST LAST
+removeperson UID
+getuid FIRST LAST
+getpoints UID
+setpoints UID POINTS
+addpoints UID POINTS
+getall
+getleaderboard
+removekey
+cls`);
+}
+
+async function handleCommand(cmdLine) {
+    const parts = cmdLine.trim().split(/\s+/);
+    const cmd = parts[0].toLowerCase();
+
+    switch(cmd) {
+        case 'help': showHelp(); break;
+        case 'cls': clearTerminal(); break;
+
+        case 'genkey':
+            if (parts.length < 2) { print('Usage: genkey IDENTIFIER'); break; }
+            try {
+                const data = await fetchJSON('/api/genkey', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({identifier: parts[1]})
+                });
+                apiKey = data.key || '';
+                apikeyInput.value = apiKey;
+                print(`New API key: ${apiKey}`);
+            } catch(e) { print(`Error: ${e}`); }
+            break;
+
+        case 'removekey':
+            try {
+                await fetchJSON('/api/removekey', { method: 'POST' });
+                apiKey = '';
+                apikeyInput.value = '';
+                print('API key removed');
+            } catch(e) { print(`Error: ${e}`); }
+            break;
+
+        case 'addperson':
+            if (parts.length < 3) { print('Usage: addperson FIRST LAST'); break; }
+            try {
+                const data = await fetchJSON('/api/addperson', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({first: parts[1], last: parts[2]})
+                });
+                print(JSON.stringify(data));
+            } catch(e) { print(`Error: ${e}`); }
+            break;
+
+        case 'removeperson':
+            if (parts.length < 2) { print('Usage: removeperson UID'); break; }
+            try {
+                const data = await fetchJSON('/api/removeperson', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({uid: parseInt(parts[1],10)})
+                });
+                print(JSON.stringify(data));
+            } catch(e) { print(`Error: ${e}`); }
+            break;
+
+        case 'getuid':
+            if (parts.length < 3) { print('Usage: getuid FIRST LAST'); break; }
+            try {
+                const params = new URLSearchParams({first: parts[1], last: parts[2]});
+                const data = await fetchJSON(`/api/getuid?${params.toString()}`);
+                print(JSON.stringify(data));
+            } catch(e) { print(`Error: ${e}`); }
+            break;
+
+        case 'getpoints':
+            if (parts.length < 2) { print('Usage: getpoints UID'); break; }
+            try {
+                const params = new URLSearchParams({uid: parts[1]});
+                const data = await fetchJSON(`/api/getpoints?${params.toString()}`);
+                print(JSON.stringify(data));
+            } catch(e) { print(`Error: ${e}`); }
+            break;
+
+        case 'setpoints':
+            if (parts.length < 3) { print('Usage: setpoints UID POINTS'); break; }
+            try {
+                const data = await fetchJSON('/api/setpoints', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({uid: parseInt(parts[1],10), points: parseInt(parts[2],10)})
+                });
+                print(JSON.stringify(data));
+            } catch(e) { print(`Error: ${e}`); }
+            break;
+
+        case 'addpoints':
+            if (parts.length < 3) { print('Usage: addpoints UID POINTS'); break; }
+            try {
+                const data = await fetchJSON('/api/addpoints', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({uid: parseInt(parts[1],10), points: parseInt(parts[2],10)})
+                });
+                print(JSON.stringify(data));
+            } catch(e) { print(`Error: ${e}`); }
+            break;
+
+        case 'getall':
+            try {
+                const data = await fetchJSON('/api/getall');
+                print(JSON.stringify(data, null, 2));
+            } catch(e) { print(`Error: ${e}`); }
+            break;
+
+        case 'getleaderboard':
+            try {
+                const data = await fetchJSON('/api/getall');
+                data.sort((a,b)=>b.points-a.points);
+                print('Leaderboard Position | Full Name | Points');
+                data.forEach((u,i)=>print(`${i+1} | ${u.first} ${u.last} | ${u.points}`));
+            } catch(e) { print(`Error: ${e}`); }
+            break;
+
+        default:
+            print('Unknown command. Type "help" for commands.');
+    }
+}
+
+input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+        const cmdLine = input.value;
+        print(`> ${cmdLine}`);
+        input.value = '';
+        handleCommand(cmdLine);
+    }
+});
+
+// Initial message
+print('Connected to server. Enter API key above if needed. Type "help" for commands.');
+</script>
+</body>
+</html>
