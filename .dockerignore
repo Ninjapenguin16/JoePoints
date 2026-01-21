@@ -1,0 +1,26 @@
+# Git
+.git
+.gitignore
+
+# Local database files
+data.db
+data.db-shm
+data.db-wal
+
+# Local build artifacts
+build/
+joepoints
+joepoints.exe
+
+# Editor / OS junk
+.vscode
+.idea
+*.swp
+*.tmp
+
+# Documentation (not needed in image)
+README.md
+SECURITY.md
+
+# Mage build artifacts
+mage_output_file.go
