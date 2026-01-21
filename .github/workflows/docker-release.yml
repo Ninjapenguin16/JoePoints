@@ -1,0 +1,42 @@
+name: Build & Publish Docker Image on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build_and_publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u Ninjapenguin16 --password-stdin
+
+      - name: Build Docker image
+        run: |
+          IMAGE=ghcr.io/ninjapenguin16/joepoints
+          TAG=${{ github.event.release.tag_name }}
+          TAG=${TAG#v}
+
+          docker build . \
+            -t $IMAGE:latest \
+            -t $IMAGE:$TAG
+
+      - name: Push Docker image
+        run: |
+          IMAGE=ghcr.io/ninjapenguin16/joepoints
+          TAG=${{ github.event.release.tag_name }}
+          TAG=${TAG#v}
+
+          docker push $IMAGE:latest
+          docker push $IMAGE:$TAG
