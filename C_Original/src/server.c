@@ -221,6 +221,9 @@ request_handler(void* cls, struct MHD_Connection* connection, const char* url, c
         else if(strcmp(url, "/cli") == 0) {
             snprintf(filepath, sizeof(filepath), "www/cli.html");
         }
+        else if(strcmp(url, "/assets/joe.png") == 0) {
+            snprintf(filepath, sizeof(filepath), "www/assets/joe.png");
+        }
         else {
             snprintf(filepath, sizeof(filepath), "www/index.html"); // If no match go to home page
         }
