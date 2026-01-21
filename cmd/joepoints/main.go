@@ -23,7 +23,14 @@ func main() {
 	slog.Info("Starting server...")
 
 	// Initialize database
-	if err := db.DBInit("data.db"); err != nil {
+	dbDir := "database"
+	if err := os.MkdirAll(dbDir, 0o755); err != nil {
+		slog.Error("Failed to create database directory", "error", err)
+		os.Exit(1)
+	}
+
+	dbPath := dbDir + string(os.PathSeparator) + "data.db"
+	if err := db.DBInit(dbPath); err != nil {
 		slog.Error("Failed to initialize database", "error", err)
 		os.Exit(1)
 	}

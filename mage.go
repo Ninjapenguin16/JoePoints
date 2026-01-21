@@ -11,13 +11,17 @@ import (
 
 var Default = Build
 
-// Build compiles the joepoints binary
 func Build() error {
 	fmt.Println("Building joepoints...")
 
+	output := "build/joepoints"
+	if os.PathSeparator == '\\' { // Windows
+		output += ".exe"
+	}
+
 	cmd := exec.Command(
 		"go", "build",
-		"-o", "build/joepoints",
+		"-o", output,
 		"./cmd/joepoints",
 	)
 

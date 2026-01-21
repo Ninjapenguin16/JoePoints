@@ -172,4 +172,3 @@ if os.Getenv("ENV") == "production" {
 - [ ] Regular backups of `data.db`
 - [ ] File permissions on `data.db` restricted (mode 0600)
 - [ ] Monitor audit logs for suspicious activity
-

@@ -3,6 +3,7 @@
 .gitignore
 
 # Local database files
+database/
 data.db
 data.db-shm
 data.db-wal

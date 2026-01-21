@@ -4,43 +4,69 @@ This is a Golang conversion of the JoePoints application, a points/rewards syste
 
 ## Project Structure
 
-- `main.go` - Application entry point with signal handling and server startup
-- `crypto.go` - Cryptographic functions (PBKDF2-HMAC-SHA256, hex encoding/decoding)
-- `db.go` - SQLite database operations and user management
-- `api.go` - HTTP API endpoint handlers and request validation
-- `server.go` - HTTP server setup and rate limiting
-- `go.mod` - Go module dependencies
+joepoints/<br>
+├── cmd/joepoints/main.go       # Entry point (package main)<br>
+├── internal/<br>
+│   ├── api/api.go              # HTTP API handlers<br>
+│   ├── server/server.go        # Server setup and request handling<br>
+│   ├── db/db.go                # SQLite database operations<br>
+│   └── crypto/crypto.go        # Cryptographic functions<br>
+├── build/                      # Build artifacts and Dockerfile<br>
+├── www/                        # Static HTML/CSS/JS assets<br>
+├── C_Original/                 # Original C version (optional)<br>
+├── go.mod, go.sum              # Go module definitions<br>
+├── README.md, SECURITY.md<br>
+└── .gitignore
+
 
 ## Dependencies
 
 - `github.com/mattn/go-sqlite3` - SQLite3 driver for Go
-- `github.com/urfave/negroni` - HTTP middleware (optional, can be removed)
 
 ## Building
 
+### Using Go directly
+
 1. Install Go 1.21 or later
-2. Navigate to the GoVer directory
+2. Navigate to the project root
 3. Install dependencies:
    ```bash
    go mod download
    ```
 4. Build the application:
    ```bash
-   go build -o joepoints
+   go build -o build/joepoints ./cmd/joepoints
+   ```
+
+### Using Mage (Preferred)
+
+1. Install Go 1.21 or later
+2. Navigate to the project root
+3. Install dependencies:
+   ```bash
+   go mod download
+   ```
+4. Install Mage: `go install github.com/magefile/mage@latest`
+5. Run the build:
+   ```bash
+   mage build
    ```
 
 ## Running
 
 ```bash
-./joepoints
+./joepoints [-port <port_number>]
 ```
 
-The server will start on port 8080 and create a SQLite database file at `data.db`.
+By default the server will:
+* Listen on port 8080
+* Use `database/data.db` for the SQLite database
+* Serve static files from `www/` directory
 
 ## API Endpoints
 
 ### Authentication
-All API endpoints (except listed exceptions) require an `Authorization: Bearer <key>` header.
+All POST API endpoints require an `Authorization: Bearer <key>` header.
 
 ### Endpoints
 
@@ -60,7 +86,6 @@ All API endpoints (except listed exceptions) require an `Authorization: Bearer <
 - **User Management**: Add, remove, and search users
 - **Points System**: Track and manage user points
 - **Rate Limiting**: IP-based rate limiting (30 requests per 15 seconds)
-- **CORS Support**: Full CORS headers on all responses
 - **Static File Serving**: Serves HTML/CSS/JS from `www/` directory
 - **Database**: SQLite with WAL mode for better concurrency
 
@@ -97,31 +122,40 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /build
 
-# Copy go.mod and download dependencies
+# Install build dependencies for CGO (sqlite3)
+RUN apk add --no-cache build-base
+
+# Copy module files first (better caching)
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
-COPY *.go ./
+# Copy the rest of the source tree
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
+COPY www/ ./www/
 
-# Build the binary (statically linked)
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o joepoints .
+# Build the binary
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
+    go build -o joepoints ./cmd/joepoints
 
-# Stage 2: Create minimal runtime image
+# Stage 2: Runtime image
 FROM alpine:latest
 
 WORKDIR /app
 
-# Copy the binary from builder
+# sqlite3 runtime dependency
+RUN apk add --no-cache libc6-compat
+
+# Copy the binary
 COPY --from=builder /build/joepoints .
 
-# Copy static files
-COPY www/ ./www/
+# Copy static assets
+COPY --from=builder /build/www ./www
 
-# Expose default port (can be overridden)
+# Expose port
 EXPOSE 8080
 
-# Run the application
+# Run the app
 ENTRYPOINT ["./joepoints"]
 CMD ["-port", "8080"]
 ```
@@ -129,39 +163,56 @@ CMD ["-port", "8080"]
 ## Step 2: Create .dockerignore File
 
 ```
+# Git
+.git
+.gitignore
+
+# Local database files
+database/
 data.db
 data.db-shm
 data.db-wal
+
+# Local build artifacts
+build/
+joepoints
 joepoints.exe
-.git
-.gitignore
+
+# Editor / OS junk
+.vscode
+.idea
+*.swp
+*.tmp
+
+# Documentation (not needed in image)
 README.md
+SECURITY.md
+
+# Mage build artifacts
+mage_output_file.go
 ```
 
 ## Step 3: Build the Docker Image
 
-cd C:\Users\rylan\Desktop\JoePoints\GoVer
-
-### Build the image
-docker build -t joepoints:latest .
+`docker build -t joepoints:latest .`
 
 ### Check the image size
-docker images joepoints
+`docker images joepoints`
 
 ## Step 4: Run the Docker Container
 
 ### Default port 8080
 docker run -p 8080:8080 joepoints:latest
 
-### Docker Building
+### Custom internal port
 docker run -p 9000:9000 joepoints:latest -port 9000
 
 ### With volume for persistent database
-docker run -p 8080:8080 -v joepoints-data:/app joepoints:latest
+docker run -p 8080:8080 -v joepoints-data:/app/database joepoints:latest
 
 ### Background mode
 docker run -d -p 8080:8080 --name joepoints-server joepoints:latest
 
 ## License
 
-Same as the original C version.
+This project is licensed under the MIT License. See the LICENSE file for details.
