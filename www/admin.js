@@ -265,6 +265,38 @@ async function getIdentifier(){
 if(apiKeyInput) apiKeyInput.addEventListener("input", ()=>{ apiKey = apiKeyInput.value.trim(); });
 
 /* =========================
+   Event Listeners
+========================= */
+
+// Authorization section buttons
+document.getElementById('identifyBtn')?.addEventListener('click', getIdentifier);
+document.getElementById('generateKeyBtn')?.addEventListener('click', openGenKeyModal);
+document.getElementById('revokeKeyBtn')?.addEventListener('click', confirmRevokeKey);
+
+// Add/Remove user buttons
+document.getElementById('addUserBtn')?.addEventListener('click', addPerson);
+document.getElementById('removeUserBtn')?.addEventListener('click', removePerson);
+
+// Lookup buttons
+document.getElementById('getUidBtn')?.addEventListener('click', getUID);
+document.getElementById('getPointsBtn')?.addEventListener('click', getPoints);
+
+// Points control buttons
+document.getElementById('setPointsBtn')?.addEventListener('click', setPoints);
+document.getElementById('addPointsBtn')?.addEventListener('click', addPoints);
+
+// Refresh button
+document.getElementById('refreshUsersBtn')?.addEventListener('click', refreshUsers);
+
+// Modal buttons - Generate Key Modal
+document.getElementById('cancelGenKeyBtn')?.addEventListener('click', closeGenKeyModal);
+document.getElementById('confirmGenKeyBtn')?.addEventListener('click', genKey);
+
+// Modal buttons - Revoke Key Modal
+document.getElementById('cancelRevokeBtn')?.addEventListener('click', closeRevokeModal);
+document.getElementById('confirmRevokeBtn')?.addEventListener('click', removeKey);
+
+/* =========================
    AUTO LOAD USERS ON OPEN ⭐
 ========================= */
 

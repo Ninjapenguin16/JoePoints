@@ -45,3 +45,11 @@ async function fetchLeaderboard() {
 fetchLeaderboard();
 // Refresh leaderboard every 5 seconds
 setInterval(fetchLeaderboard, 5000);
+
+/* =========================
+   Event Listeners
+========================= */
+
+document.getElementById('adminPanelBtn')?.addEventListener('click', () => {
+  window.location.href = '/admin';
+});

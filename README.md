@@ -1,33 +1,52 @@
-# JoePoints - Go Version
+# JoePoints v3.0 - Go Version
 
-This is a Golang conversion of the JoePoints application, a points/rewards system with API authentication, user management, and SQLite database storage.
+A modern, security-hardened points/rewards system written in Go. Features API authentication with hashed keys, user management, and SQLite database storage with web-based admin panel and public leaderboard.
 
 ## Project Structure
 
 joepoints/<br>
 ├── cmd/joepoints/main.go       # Entry point (package main)<br>
 ├── internal/<br>
-│   ├── api/api.go              # HTTP API handlers<br>
+│   ├── api/api.go              # HTTP API handlers & security<br>
 │   ├── server/server.go        # Server setup and request handling<br>
 │   ├── db/db.go                # SQLite database operations<br>
-│   └── crypto/crypto.go        # Cryptographic functions<br>
-├── build/                      # Build artifacts and Dockerfile<br>
-├── www/                        # Static HTML/CSS/JS assets<br>
-├── C_Original/                 # Original C version (optional)<br>
+│   └── crypto/crypto.go        # Cryptographic functions (Argon2ID)<br>
+├── www/                        # Static assets (admin panel, leaderboard)<br>
+│   ├── admin.html/css/js       # Web-based admin panel<br>
+│   ├── index.html/css/js       # Public leaderboard<br>
+│   └── assets/                 # Images and resources<br>
+├── Dockerfile                  # Docker image definition<br>
+├── .dockerignore               # Docker build exclusions<br>
 ├── go.mod, go.sum              # Go module definitions<br>
-├── README.md, SECURITY.md<br>
+├── mage.go                     # Build automation (Mage)<br>
+├── APIDocs.md                  # API documentation<br>
+├── README.md, LICENSE<br>
 └── .gitignore
 
 
 ## Dependencies
 
-- `github.com/mattn/go-sqlite3` - SQLite3 driver for Go
+- `modernc.org/sqlite` - Pure Go SQLite3 driver (no CGO required)
+- Standard Go library for HTTP, crypto, and JSON handling
 
 ## Building
 
-### Using Go directly
+### Using Mage (Recommended)
 
 1. Install Go 1.21 or later
+2. Navigate to the project root
+3. Install Mage: `go install github.com/magefile/mage@latest`
+4. Build:
+   ```bash
+   mage build           # Standard binary for current OS/Arch
+   mage all             # Build for all supported platforms
+   mage release x.x.x   # Release builds with www/ folder (requires version string)
+   mage clean           # Remove build artifacts
+   ```
+
+### Using Go directly
+
+1. Install Go 1.24 or later
 2. Navigate to the project root
 3. Install dependencies:
    ```bash
@@ -36,20 +55,6 @@ joepoints/<br>
 4. Build the application:
    ```bash
    go build -o build/joepoints ./cmd/joepoints
-   ```
-
-### Using Mage (Preferred)
-
-1. Install Go 1.21 or later
-2. Navigate to the project root
-3. Install dependencies:
-   ```bash
-   go mod download
-   ```
-4. Install Mage: `go install github.com/magefile/mage@latest`
-5. Run the build:
-   ```bash
-   mage build
    ```
 
 ## Running
@@ -65,153 +70,129 @@ By default the server will:
 
 ## API Endpoints
 
+All endpoints accept `POST` requests with JSON bodies and return JSON responses.
+
 ### Authentication
-All POST API endpoints require an `Authorization: Bearer <key>` header.
+Write operations require an `Authorization: Bearer <key>` header with a valid API key.
+Read operations do not require authentication.
 
 ### Endpoints
 
+**Write Operations** (require authentication):
 - `POST /api/genkey` - Generate a new API key
 - `POST /api/addperson` - Add a new user
 - `POST /api/removeperson` - Remove a user
-- `GET /api/getuid` - Get user ID by name
-- `GET /api/getpoints` - Get user's points
 - `POST /api/setpoints` - Set user's points
-- `POST /api/addpoints` - Add points to user
-- `GET /api/getall` - Get all users
-- `POST /api/removekey` - Remove current API key
+- `POST /api/addpoints` - Add/subtract points from user
+- `POST /api/removekey` - Revoke current API key
+- `POST /api/getidentifier` - Get identifier for current API key
+
+**Read Operations** (no authentication required):
+- `POST /api/getuid` - Get user ID by name
+- `POST /api/getpoints` - Get user's points
+- `POST /api/getall` - Get all users (leaderboard data)
+
+For detailed API documentation, see [APIDocs.md](APIDocs.md).
 
 ## Features
 
-- **Secure Key Management**: API keys are hashed with PBKDF2-HMAC-SHA256
-- **User Management**: Add, remove, and search users
-- **Points System**: Track and manage user points
-- **Rate Limiting**: IP-based rate limiting (30 requests per 15 seconds)
-- **Static File Serving**: Serves HTML/CSS/JS from `www/` directory
-- **Database**: SQLite with WAL mode for better concurrency
+- **Security Hardened**:
+  - API keys hashed with Argon2ID (memory-hard hashing)
+  - Strong Content Security Policy (CSP) on all pages
+  - Security headers: X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy
+  - No inline scripts or styles (CSP compliant)
+  - CORS removed entirely
+
+- **User Management**:
+  - Add, remove, and search users by name
+  - Auto-assigned unique UIDs
+  - Points tracking and manipulation
+  - Prevents duplicate users
+
+- **Points System**:
+  - Set points to exact value
+  - Add/subtract points with overflow protection
+  - 32-bit signed integer range (-2.1B to +2.1B)
+  - Transaction-safe operations
+
+- **API Key Management**:
+  - Generate keys with custom identifiers
+  - Immediate Argon2ID hashing on receipt
+  - Raw keys zeroed in memory after hashing
+  - Revocable at any time
+  - Key identifier lookup
+
+- **Web Interfaces**:
+  - Admin panel for managing users and points
+  - Public leaderboard view
+  - Responsive design
+  - No framework dependencies (plain CSS/JS)
+
+- **Database**: SQLite with proper concurrency handling
+- **No CGO**: Uses pure Go SQLite driver for easier deployment
 
 ## Database Schema
 
-### users table
-- `uid` (INTEGER PRIMARY KEY)
-- `first` (TEXT)
-- `last` (TEXT)
-- `points` (INTEGER)
+**Note**: Databases from v2.0 are no longer compatible with v3.0. Use a fresh database or migrate manually.
 
 ### keys table
-- `id` (INTEGER PRIMARY KEY)
-- `identifier` (TEXT)
-- `key_hash` (TEXT)
-- `salt` (TEXT)
-
-## Key Differences from C Version
-
-1. **Error Handling**: Go uses explicit error returns instead of return codes
-2. **Concurrency**: Built-in mutex-based thread safety instead of pthread
-3. **Memory Management**: Automatic garbage collection instead of manual malloc/free
-4. **Crypto**: Uses standard library crypto packages
-5. **HTTP**: Uses Go's built-in net/http package instead of libmicrohttpd
-6. **JSON**: Uses Go's encoding/json package instead of json-c
-
-## Docker Building
-
-## Step 1: Create Dockerfile
-
-```
-# Stage 1: Build the Go binary
-FROM golang:1.25-alpine AS builder
-
-WORKDIR /build
-
-# Install build dependencies for CGO (sqlite3)
-RUN apk add --no-cache build-base
-
-# Copy module files first (better caching)
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy the rest of the source tree
-COPY cmd/ ./cmd/
-COPY internal/ ./internal/
-COPY www/ ./www/
-
-# Build the binary
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-    go build -o joepoints ./cmd/joepoints
-
-# Stage 2: Runtime image
-FROM alpine:latest
-
-WORKDIR /app
-
-# sqlite3 runtime dependency
-RUN apk add --no-cache libc6-compat
-
-# Copy the binary
-COPY --from=builder /build/joepoints .
-
-# Copy static assets
-COPY --from=builder /build/www ./www
-
-# Expose port
-EXPOSE 8080
-
-# Run the app
-ENTRYPOINT ["./joepoints"]
-CMD ["-port", "8080"]
+```sql
+CREATE TABLE keys (
+  id INTEGER PRIMARY KEY,
+  identifier TEXT,
+  key_hash TEXT,
+  salt TEXT,
+  argon2_time_cost INTEGER,
+  argon2_memory_kb INTEGER,
+  argon2_threads INTEGER
+)
 ```
 
-## Step 2: Create .dockerignore File
-
-```
-# Git
-.git
-.gitignore
-
-# Local database files
-database/
-data.db
-data.db-shm
-data.db-wal
-
-# Local build artifacts
-build/
-joepoints
-joepoints.exe
-
-# Editor / OS junk
-.vscode
-.idea
-*.swp
-*.tmp
-
-# Documentation (not needed in image)
-README.md
-SECURITY.md
-
-# Mage build artifacts
-mage_output_file.go
+### users table
+```sql
+CREATE TABLE users (
+  uid INTEGER PRIMARY KEY,
+  first TEXT,
+  last TEXT,
+  points INTEGER DEFAULT 0
+)
 ```
 
-## Step 3: Build the Docker Image
+## Docker
 
-`docker build -t joepoints:latest .`
+A Dockerfile is included in the project root. The image:
+- Uses multi-stage build for minimal size (~6MB)
+- Requires no CGO (uses pure Go SQLite)
+- Includes web assets (`www/` folder)
 
-### Check the image size
-`docker images joepoints`
+### Building the Docker image
 
-## Step 4: Run the Docker Container
+```bash
+docker build -t joepoints:latest .
+```
 
-### Default port 8080
+### Running the container
+
+```bash
+# Default port 8080
 docker run -p 8080:8080 joepoints:latest
 
-### Custom internal port
+# Custom internal port
 docker run -p 9000:9000 joepoints:latest -port 9000
 
-### With volume for persistent database
+# Persistent database volume
 docker run -p 8080:8080 -v joepoints-data:/app/database joepoints:latest
 
-### Background mode
+# Background mode
 docker run -d -p 8080:8080 --name joepoints-server joepoints:latest
+```
+
+### Image details
+- **Base**: Alpine Linux (minimal)
+- **Build image**: golang:1.25-alpine (discarded after build)
+- **Runtime**: Pure Go binary, no CGO dependencies
+- **Size**: ~6MB (optimized)
+- **Exposed port**: 8080 (configurable via `-port` flag)
 
 ## License
 

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -21,7 +22,7 @@ const (
 	MaxBodySizeBytes   = api.MaxBodySize
 	MaxRequestsPerIP   = 30
 	RateLimitWindow    = 15 * time.Second
-	WhitelistLocalhost = true
+	WhitelistLocalhost = false
 )
 
 var (
@@ -182,8 +183,8 @@ func serveFile(w http.ResponseWriter, r *http.Request, userPath string, keepWith
 		return
 	}
 
-	// Open file
-	file, err := os.Open(finalPath)
+	// Open file, clean to ensure nothing got past previous checks
+	file, err := os.Open(path.Clean(finalPath))
 	if err != nil {
 		http.NotFound(w, r)
 		return
