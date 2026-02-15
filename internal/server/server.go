@@ -124,58 +124,74 @@ func GetClientIP(r *http.Request) string {
 	return ip
 }
 
-// Serves a static file with appropriate headers
-func serveFile(w http.ResponseWriter, r *http.Request, filePath string, keepWithinWWW bool) {
-	// If is a directory, return not found
-	osStat, err := os.Stat(filePath)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	if osStat.IsDir() {
-		http.NotFound(w, r)
-		return
-	}
+// Vets the user-provided path first before serving a static file with appropriate headers
+// Resolves symlinks before checks and serving
+func serveFile(w http.ResponseWriter, r *http.Request, userPath string, keepWithinWWW bool) {
+	var finalPath string
 
-	// If keepWithinWWW is true, ensure the file path is within the www directory
 	if keepWithinWWW {
-		// Expand to absolute path
-		absPath, err := filepath.Abs(filePath)
+		// Absolute path to www root
+		wwwRoot, err := filepath.Abs("www")
 		if err != nil {
 			http.NotFound(w, r)
 			return
 		}
 
-		// Get absolute path of www directory
-		wwwAbs, err := filepath.Abs("www")
+		// Normalize user path by removing leading slash
+		cleanPath := strings.TrimPrefix(userPath, "/")
+
+		// Join user path with www root
+		requestedPath := filepath.Join(wwwRoot, cleanPath)
+
+		// Resolve symlinks
+		realPath, err := filepath.EvalSymlinks(requestedPath)
 		if err != nil {
 			http.NotFound(w, r)
 			return
 		}
 
-		// Check if the path is within www directory
-		if !strings.HasPrefix(absPath, wwwAbs+string(filepath.Separator)) && absPath != wwwAbs {
+		// Ensure resolved path is still inside www
+		rel, err := filepath.Rel(wwwRoot, realPath)
+		if err != nil || strings.HasPrefix(rel, "..") {
 			http.NotFound(w, r)
 			return
 		}
+
+		finalPath = realPath
+	} else {
+		// Not constrained to www
+		absPath, err := filepath.Abs(userPath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		realPath, err := filepath.EvalSymlinks(absPath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		finalPath = realPath
 	}
 
-	file, err := os.Open(filePath)
+	// Check if file exists and is not a directory
+	stat, err := os.Stat(finalPath)
+	if err != nil || stat.IsDir() {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Open file
+	file, err := os.Open(finalPath)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
 	defer file.Close()
 
-	// Get file info for content length
-	stat, err := file.Stat()
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	// Set content type based on extension
-	ext := filepath.Ext(filePath)
+	// Detect content type by extension
+	ext := filepath.Ext(finalPath)
 	var contentType string
 	switch ext {
 	case ".html":
@@ -188,6 +204,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, filePath string, keepWith
 		contentType = "application/octet-stream"
 	}
 
+	// Set security headers and write file
 	api.SetSecurityHeaders(w)
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", strconv.FormatInt(stat.Size(), 10))
@@ -219,20 +236,16 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 		// Root path defaults to index.html
 		switch url {
 		case "/":
-			filePath = "www/index.html"
+			filePath = "index.html"
 		case "/admin":
-			filePath = "www/admin.html"
+			filePath = "admin.html"
 		default:
-			// Serve requested file from www directory
-			filePath = filepath.Join("www", filepath.Clean(url))
+			filePath = url
 		}
 
-		// Check if file exists and serve it
-		if _, err := os.Stat(filePath); err == nil {
-			serveFile(w, r, filePath, true)
-		} else {
-			http.NotFound(w, r)
-		}
+		// Will clean and ensure the path is within the www directory, otherwise will return 404
+		serveFile(w, r, filePath, true)
+
 		return
 	}
 

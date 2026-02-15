@@ -60,7 +60,9 @@
     * Fully updated client size websites
         * Cli page removed and replaced with a GUI admin panel
         * Both the home page and admin page now handle all escaping client side
-        * 
+    * Update serveFile function to be soly responsible for vetting paths before serving files
+        * Resolves symlinks before checks and serving
+        * Now takes a boolean for whether to ensure the path is in the www folder
         
 
 * Build environment changes
