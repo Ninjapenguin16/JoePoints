@@ -4,7 +4,7 @@
 
 * API keys are now immediately hashed upon receipt using Argon2ID; raw keys are zeroed in memory to minimize exposure.
 * Argon2ID parameters (time, memory, threads) are stored with each hashed key in the database.
-* DB functions now only accept hashed API keys: `DBAddKey`, `DBRemoveKey`, `DBCheckAuth`; `DBAuthKeyExists` returns the hashed key for use in other DB functions.
+* DB functions now only accept hashed API keys: `DBCreateKey`, `DBRemoveKey` etc.; `DBAuthKeyExists` returns the hashed key for use in other DB functions.
 * Hashed API keys are printed in logs instead of raw keys.
 * New DB function and API endpoint added for retrieving a hashed key's identifier.
 * Password hashing and API key handling now fully compliant with updated security practices.
