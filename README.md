@@ -68,6 +68,13 @@ By default the server will:
 * Use `database/data.db` for the SQLite database
 * Serve static files from `www/` directory
 
+## Security Recommendations
+
+**First Run**: On first run, a default API key with identifier 'firstrun' is created automatically. For security:
+* **Create a new API key** using the admin panel or API
+* **Delete the 'firstrun' key** immediately after creating your own key
+* Never use the default key in production environments
+
 ## API Endpoints
 
 All endpoints accept `POST` requests with JSON bodies and return JSON responses.
@@ -193,6 +200,11 @@ docker run -d -p 8080:8080 --name joepoints-server joepoints:latest
 - **Runtime**: Pure Go binary, no CGO dependencies
 - **Size**: ~6MB (optimized)
 - **Exposed port**: 8080 (configurable via `-port` flag)
+
+## Possible Future Features (v4.0)
+
+- **OAuth2 Authentication**: Switch to OAuth2 for user authentication while maintaining current ID and API key system for session management
+- **gRPC Protocol**: Migrate from JSON-RPC to gRPC for improved performance and type safety
 
 ## License
 
