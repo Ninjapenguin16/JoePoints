@@ -1,0 +1,109 @@
+* Code changes
+    * Remove all string checks
+        * Instead using prepared statments for SQL and returning raw strings to client.
+        * Client is now in charge of escaping html characters.
+        * Allows all unicode characters to be used for foreign names
+        * Json still encoded and decoded server side
+    * Update bearer token extraction
+        * Now case-insensitive
+        * Allow for extra whitespace
+    * Fixed inconsistencies in implimentations in api.go
+        * handleGetAll now uses sendJSONResponse function instead of manual sending
+        * handleRemoveKey uses checkAuth function instead of manual check
+    * Change sqlite library
+        * Change sqlite library to modernc.org/sqlite
+        * No longer requires CGO
+    * Add UID bounds check
+    * Add points bounds check
+        * When adding points, ensures resulting sum will be in bounds
+    * Point UID and Points validation helper
+        * Added validateAndGetUID helper function to reduce code duplication
+            * Now used in handleGetUID, handleAddPoints, and handleRemoveUser
+        * Added validateAndGetPoints helper function to reduce code duplication
+            * Now used in handleAddPoints and handleSetPoints
+    * Minimized lifetime of raw API key in memory
+        * API key hashed immediately upon receipt
+        * API key in request header zeroed after hashing
+    * Audit logs now use hashed API key instead of raw key
+    * DBAuthKeyExists now returns hashed key for use in other DB functions
+    * DB functions updated to only accept hashed API key
+        * DBAddKey
+        * DBRemoveKey
+        * DBCheckAuth
+    * Hasing algorithm changed to Argon2ID
+        * Recommend parameters set to time=1, memory=16MB, threads=1
+        * All parameters stored in database with hashed key
+        * Parameters set at compile time, variables inside db.go
+        * Parameters stored in database with hashed key
+        * Hashing used parameters defined in database
+            * Program parameters onlt affect new keys
+    * Hash and salt size are now configurable
+        * Both required to be a multiple of 2 to store correctly in hexidecimal
+    * Default limit of 16 hashes computing concurrently
+        * Configurable via MaxHashRoutines variable in crypto.go
+    * DB schema updated to store Argon2ID parameters with hashed key
+    * Migration function for old keys removed
+    * Auth key sql row ID's now take lowest available when generating like user UIDs
+    * Rate limiter able to whitelist localhost at compile time
+    * API endpoints updated to use POST instead of GET
+        * GET requests should not have a body, and some clients do not allow it
+        * POST requests now used for all endpoints, even those that do not require a body
+    * GetUID endpoint now returns proper JSON response with uid field instead of raw int
+    * Fixed http respose headers after testing in ZAP
+        * Added Content-Security-Policy header
+        * Added X-Content-Type-Options header
+        * Added X-Frame-Options header
+        * Added Referrer-Policy header
+        * Added Permissions-Policy header
+        * Removed Access-Control-Allow-Origin header
+    * Removed CORS options entirely as it was not needed
+    * Fully updated client size websites
+        * Cli page removed and replaced with a GUI admin panel
+        * Both the home page and admin page now handle all escaping client side
+        * 
+        
+
+* Build environment changes
+    * Updated mage.go build file
+        * New build targets
+            * build (default): Build standard binary, defaulting to current OS/Arch unless GOOS/GOARCH env vars set
+            * all: Build all supported platforms
+            * release: Build all supported platforms and zip each with www/ folder, must provide release version string
+            * clean: Remove build/ folder
+    * Updated Dockerfile
+        * No longer requires CGO
+        * www folder now read only
+        * Resulting container ~6MB smaller
+    * Removed old C version files
+    * Removed Tools folder in favor of better endpoint documentation for curl
+    * Removed security.md, misunderstood use for it
+
+
+* ToDo
+    * Make sure that the hashed API key is printed out in logs, not the raw key - DONE
+    * Add html escaping on web front-end when displaying user inputted data - DONE
+    * Add DB function to get a hashed key's identifier (for logging) - DONE
+    * Replace hashing with argon2 - DONE
+    * store argon2 parameters with hashed key in database - DONE
+    * Zero out raw API key in memory after hashing - DONE
+    * Make it so new API keys and people get stored in the database with smallest possible uid / ID - DONE
+    * Find out and fix why getall returns invalid json while other endpoints work fine - DONE
+    * Remake admin web UI - DONE
+
+    * ADD CURL DOCUMENTATION FOR ALL ENDPOINTS - URGENT
+
+
+* Notes
+    * main.go is done
+    * api.go is done
+    * crypto.go is done
+    * server.go is done
+    * db.go is done
+    * New API type is JSON-RPC with key Auth, which uses JSON for request and response bodies, and a bearer token for authentication
+
+* To add to docs
+    * Recommend creating new API key after first run and deleting default 'firstrun' key
+
+* Possible future features for v4.0
+    * Switch to using OAuth2 authentication, using the current ID and API key for session auth
+    * Switch from JSON-RPC to gRPC

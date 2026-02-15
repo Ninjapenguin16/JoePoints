@@ -15,13 +15,13 @@ import (
 )
 
 const (
-	MaxConnections    = 100
-	ConnectionTimeout = 5 * time.Second
-	MaxHeaderSize     = 8192
-	MaxBodySizeBytes  = api.MaxBodySize
-
-	MaxRequestsPerIP = 30
-	RateLimitWindow  = 15 * time.Second
+	MaxConnections     = 100
+	ConnectionTimeout  = 5 * time.Second
+	MaxHeaderSize      = 8192
+	MaxBodySizeBytes   = api.MaxBodySize
+	MaxRequestsPerIP   = 30
+	RateLimitWindow    = 15 * time.Second
+	WhitelistLocalhost = true
 )
 
 var (
@@ -31,12 +31,14 @@ var (
 	ticker  *time.Ticker
 )
 
+// IP rate limiting entry
 type ipEntry struct {
 	count       int
 	lastReset   time.Time
-	rateLimited bool // Track if we've already logged this IP hitting the limit
+	rateLimited bool
 }
 
+// Initialize IP table and start cleanup goroutine
 func init() {
 	ipTable = make(map[string]*ipEntry)
 
@@ -45,7 +47,7 @@ func init() {
 	go cleanupIPTable()
 }
 
-// cleanupIPTable removes IP entries that haven't been reset in over 1 hour
+// Removes IP entries that haven't been reset in over 1 hour
 func cleanupIPTable() {
 	for range ticker.C {
 		ipLock.Lock()
@@ -59,7 +61,7 @@ func cleanupIPTable() {
 	}
 }
 
-// checkRateLimit checks if a client is rate limited
+// Checks if a client is rate limited
 // Only logs the first time an IP violates the limit per time window to prevent log spam
 // If an IP is already rate limited and sends another request, resets their timer window
 func checkRateLimit(r *http.Request) bool {
@@ -67,8 +69,11 @@ func checkRateLimit(r *http.Request) bool {
 	defer ipLock.Unlock()
 
 	// Get client IP
-	ip := getClientIP(r)
+	ip := GetClientIP(r)
 	if ip == "" {
+		return false
+	}
+	if WhitelistLocalhost && (ip == "127.0.0.1" || ip == "::1") {
 		return false
 	}
 
@@ -81,10 +86,10 @@ func checkRateLimit(r *http.Request) bool {
 	}
 
 	if now.Sub(entry.lastReset) > RateLimitWindow {
-		// New window: reset count and timer
+		// New window, reset count and timer
 		entry.count = 1
 		entry.lastReset = now
-		entry.rateLimited = false // Reset flag for new window so we log again next window
+		entry.rateLimited = false
 		return false
 	}
 
@@ -102,7 +107,6 @@ func checkRateLimit(r *http.Request) bool {
 	}
 
 	// If already rate limited and they send another request, reset their timer
-	// This ensures they can't escape the rate limit without waiting the full window
 	if isLimited {
 		entry.lastReset = now
 	}
@@ -110,12 +114,8 @@ func checkRateLimit(r *http.Request) bool {
 	return isLimited
 }
 
-// getClientIP extracts the client IP from the request
-// Only trusts X-Forwarded-For from direct connection (not from clients)
-// In production, configure trusted proxies explicitly
-func getClientIP(r *http.Request) string {
-	// Only use X-Forwarded-For if behind a reverse proxy (configure accordingly)
-	// For now, use the direct RemoteAddr for security
+// Extracts the client IP from the request
+func GetClientIP(r *http.Request) string {
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
@@ -124,11 +124,45 @@ func getClientIP(r *http.Request) string {
 	return ip
 }
 
-// serveFile serves a static file from the www directory
-func serveFile(w http.ResponseWriter, filePath string) {
+// Serves a static file with appropriate headers
+func serveFile(w http.ResponseWriter, r *http.Request, filePath string, keepWithinWWW bool) {
+	// If is a directory, return not found
+	osStat, err := os.Stat(filePath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if osStat.IsDir() {
+		http.NotFound(w, r)
+		return
+	}
+
+	// If keepWithinWWW is true, ensure the file path is within the www directory
+	if keepWithinWWW {
+		// Expand to absolute path
+		absPath, err := filepath.Abs(filePath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Get absolute path of www directory
+		wwwAbs, err := filepath.Abs("www")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Check if the path is within www directory
+		if !strings.HasPrefix(absPath, wwwAbs+string(filepath.Separator)) && absPath != wwwAbs {
+			http.NotFound(w, r)
+			return
+		}
+	}
+
 	file, err := os.Open(filePath)
 	if err != nil {
-		http.NotFound(w, nil)
+		http.NotFound(w, r)
 		return
 	}
 	defer file.Close()
@@ -145,7 +179,7 @@ func serveFile(w http.ResponseWriter, filePath string) {
 	var contentType string
 	switch ext {
 	case ".html":
-		contentType = "text/html"
+		contentType = "text/html; charset=utf-8"
 	case ".css":
 		contentType = "text/css"
 	case ".js":
@@ -154,18 +188,19 @@ func serveFile(w http.ResponseWriter, filePath string) {
 		contentType = "application/octet-stream"
 	}
 
+	api.SetSecurityHeaders(w)
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Length", strconv.FormatInt(stat.Size(), 10))
 	w.WriteHeader(http.StatusOK)
 
 	io.Copy(w, file)
 }
 
-// requestHandler handles incoming HTTP requests
+// Handles incoming HTTP requests
 func requestHandler(w http.ResponseWriter, r *http.Request) {
 	// Check rate limiting
 	if checkRateLimit(r) {
+		api.SetSecurityHeaders(w)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusTooManyRequests)
 		w.Write([]byte(`{"error":"Too Many Requests"}`))
@@ -182,38 +217,19 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 		var filePath string
 
 		// Root path defaults to index.html
-		if url == "/" {
+		switch url {
+		case "/":
 			filePath = "www/index.html"
-		} else if url == "/cli" {
-			filePath = "www/cli.html"
-		} else {
-			// Serve requested file from www directory with security check
+		case "/admin":
+			filePath = "www/admin.html"
+		default:
+			// Serve requested file from www directory
 			filePath = filepath.Join("www", filepath.Clean(url))
-
-			// Prevent directory traversal attacks
-			// Ensure the resolved path is still within www directory
-			absPath, err := filepath.Abs(filePath)
-			if err != nil {
-				http.NotFound(w, r)
-				return
-			}
-
-			wwwAbs, err := filepath.Abs("www")
-			if err != nil {
-				http.NotFound(w, r)
-				return
-			}
-
-			// Check if the path is within www directory
-			if !strings.HasPrefix(absPath, wwwAbs+string(filepath.Separator)) && absPath != wwwAbs {
-				http.NotFound(w, r)
-				return
-			}
 		}
 
-		// Check if file exists
+		// Check if file exists and serve it
 		if _, err := os.Stat(filePath); err == nil {
-			serveFile(w, filePath)
+			serveFile(w, r, filePath, true)
 		} else {
 			http.NotFound(w, r)
 		}
@@ -224,7 +240,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 	api.APIDispatcher(w, r)
 }
 
-// StartServer starts the HTTP server on the specified port
+// Starts the HTTP server on the specified port
 func StartServer(port int) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", requestHandler)
@@ -243,7 +259,7 @@ func StartServer(port int) error {
 	return server.ListenAndServe()
 }
 
-// StopServer stops the HTTP server gracefully
+// Stops the HTTP server gracefully
 func StopServer() {
 	if server != nil {
 		server.Close()

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JAdmin Panel</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <div class="container section-group">
+      <h1>JAdmin Panel</h1>
+    <pre id="output"></pre>
+      <!-- API Key -->
+      <div class="card">
+      <h2>Authorization</h2>
+      <div class="flex">
+        <input type="text" id="apiKey" placeholder="Paste API key here" class="flex-1" />
+        <button onclick="getIdentifier()" class="btn-blue">Identify</button>
+        <button onclick="openGenKeyModal()" class="btn-green">Generate</button>
+        <button onclick="confirmRevokeKey()" class="btn-red">Revoke</button>
+      </div>
+    </div>
+
+      <!-- Add user & Remove user -->
+      <div class="card">
+        <div class="card-group">
+          <div class="card-half">
+            <h2>Add User</h2>
+            <div class="flex">
+              <input type="text" id="first" placeholder="First name" class="flex-1" />
+              <input type="text" id="last" placeholder="Last name" class="flex-1" />
+              <button onclick="addPerson()" class="btn-green">Add</button>
+            </div>
+          </div>
+          <div class="card-half">
+            <h2>Remove User</h2>
+            <div class="flex">
+              <input type="text" id="removeUid" placeholder="UID" class="flex-1" />
+              <button onclick="removePerson()" class="btn-red">Remove</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lookup UID & Lookup Points -->
+      <div class="card">
+        <div class="card-group">
+          <div class="card-half">
+            <h2>Lookup UID</h2>
+            <div class="flex flex-wrap">
+              <input type="text" id="lookupFirst" placeholder="First" class="flex-1" />
+              <input type="text" id="lookupLast" placeholder="Last" class="flex-1" />
+              <button onclick="getUID()" class="btn-sky">Get UID</button>
+            </div>
+          </div>
+          <div class="card-half">
+            <h2>Lookup Points</h2>
+            <div class="flex">
+              <input type="text" id="uidField" placeholder="UID" class="flex-1" />
+              <button onclick="getPoints()" class="btn-indigo">Get Points</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <!-- Points control -->
+    <div class="card">
+      <h2>Points</h2>
+      <div class="flex">
+        <input type="number" id="points" placeholder="Points" />
+        <button onclick="setPoints()" class="btn-yellow">Set</button>
+        <button onclick="addPoints()" class="btn-emerald">Add</button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card">
+      <div class="flex flex-between flex-center">
+        <h2>All Users</h2>
+        <button onclick="getAll()" class="btn-slate">Refresh</button>
+      </div>
+      <table id="userTable">
+        <thead>
+          <tr>
+            <th>UID</th>
+            <th>First</th>
+            <th>Last</th>
+            <th>Points</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- Generate Key Modal -->
+  <div id="genKeyModal" class="modal hidden">
+    <div class="modal-content">
+      <h3 class="modal-title">Generate New API Key</h3>
+      <input type="text" id="identifierInput" placeholder="Identifier (ex: admin-laptop)" style="width: 100%;" />
+      <div class="flex flex-end">
+        <button onclick="closeGenKeyModal()" class="btn-slate">Cancel</button>
+        <button onclick="genKey()" class="btn-green-dark">Generate</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Revoke Confirm Modal -->
+  <div id="revokeModal" class="modal hidden">
+    <div class="modal-content">
+      <h3 class="modal-title modal-text-red">Revoke API Key?</h3>
+      <p class="modal-subtitle">This will immediately invalidate the current key.</p>
+      <div class="flex flex-end">
+        <button onclick="closeRevokeModal()" class="btn-slate">Cancel</button>
+        <button onclick="removeKey()" class="btn-red-dark">Revoke</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

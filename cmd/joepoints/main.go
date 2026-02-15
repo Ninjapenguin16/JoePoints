@@ -12,11 +12,11 @@ import (
 )
 
 func main() {
-	// Parse command line arguments
+	// Parse command line arguments for listening port, default to 8080
 	port := flag.Int("port", 8080, "Port to listen on")
 	flag.Parse()
 
-	// Setup signal handler for graceful shutdown
+	// Setup CTRL + C signal handler for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
@@ -38,7 +38,7 @@ func main() {
 	// Start server on specified port
 	go func() {
 		if err := server.StartServer(*port); err != nil {
-			// http.ErrServerClosed is not an error, it's the expected result of graceful shutdown
+			// Note: http.ErrServerClosed is a graceful shutdown
 			if err != http.ErrServerClosed {
 				slog.Error("Server error", "error", err)
 				os.Exit(1)
@@ -50,6 +50,7 @@ func main() {
 	<-sigChan
 	slog.Info("Stopping server...")
 
+	// Cleanup
 	server.StopServer()
 	db.DBClose()
 
