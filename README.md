@@ -33,7 +33,7 @@ joepoints/<br>
 
 ### Using Mage (Recommended)
 
-1. Install Go 1.21 or later
+1. Install Go 1.26.0 or later
 2. Navigate to the project root
 3. Install Mage: `go install github.com/magefile/mage@latest`
 4. Build:
