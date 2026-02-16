@@ -46,7 +46,7 @@ joepoints/<br>
 
 ### Using Go directly
 
-1. Install Go 1.24 or later
+1. Install Go 1.26 or later
 2. Navigate to the project root
 3. Install dependencies:
    ```bash
