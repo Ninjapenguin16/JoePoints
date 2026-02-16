@@ -196,7 +196,7 @@ docker run -d -p 8080:8080 --name joepoints-server joepoints:latest
 
 ### Image details
 - **Base**: Alpine Linux (minimal)
-- **Build image**: golang:1.25-alpine (discarded after build)
+- **Build image**: golang:1.26-alpine (discarded after build)
 - **Runtime**: Pure Go binary, no CGO dependencies
 - **Size**: ~6MB (optimized)
 - **Exposed port**: 8080 (configurable via `-port` flag)
