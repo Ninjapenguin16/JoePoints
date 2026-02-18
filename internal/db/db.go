@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"joepoints/internal/crypto"
 	"log/slog"
+	"math"
 	"sync"
 	"time"
 
@@ -100,8 +101,12 @@ func DBInit(path string) error {
 
 // Closes the database connection
 func DBClose() {
+	dbLock.Lock()
+	defer dbLock.Unlock()
+
 	if db != nil {
 		db.Close()
+		db = nil
 	}
 }
 
@@ -165,7 +170,8 @@ func DBAuthKeyExists(key string) (bool, string) {
 		return false, ""
 	}
 
-	rows, err := db.Query("SELECT key_hash, salt FROM keys")
+	// Fetch all needed columns in a single query to avoid nested queries while holding the lock
+	rows, err := db.Query("SELECT key_hash, salt, argon2_time_cost, argon2_memory_kb, argon2_threads FROM keys")
 	if err != nil {
 		return false, ""
 	}
@@ -173,18 +179,14 @@ func DBAuthKeyExists(key string) (bool, string) {
 
 	for rows.Next() {
 		var keyHashHex, saltHex string
-		if err := rows.Scan(&keyHashHex, &saltHex); err != nil {
+		var timeCost, memoryKB uint32
+		var threads uint8
+		if err := rows.Scan(&keyHashHex, &saltHex, &timeCost, &memoryKB, &threads); err != nil {
 			continue
 		}
 
 		saltRaw, err := crypto.HexDecode(saltHex)
 		if err != nil {
-			continue
-		}
-
-		var timeCost, memoryKB uint32
-		var threads uint8
-		if err := db.QueryRow("SELECT argon2_time_cost, argon2_memory_kb, argon2_threads FROM keys WHERE key_hash=?", keyHashHex).Scan(&timeCost, &memoryKB, &threads); err != nil {
 			continue
 		}
 
@@ -334,12 +336,24 @@ func DBSetPoints(uid, points int) error {
 }
 
 // Adds points to a user's total
+// Checks for integer overflow/underflow atomically within the lock
 func DBAddPoints(uid, points int) error {
 	dbLock.Lock()
 	defer dbLock.Unlock()
 
 	if db == nil {
 		return fmt.Errorf("database not initialized")
+	}
+
+	// Get current points atomically
+	var currentPoints int
+	if err := db.QueryRow("SELECT points FROM users WHERE uid=?", uid).Scan(&currentPoints); err != nil {
+		return fmt.Errorf("user not found")
+	}
+
+	// Check for overflow/underflow
+	if (points > 0 && currentPoints > math.MaxInt32-points) || (points < 0 && currentPoints < math.MinInt32-points) {
+		return fmt.Errorf("resulting points would overflow/underflow")
 	}
 
 	_, err := db.Exec("UPDATE users SET points=points+? WHERE uid=?", points, uid)

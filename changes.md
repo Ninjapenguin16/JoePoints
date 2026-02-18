@@ -1,69 +1,42 @@
-# JoePoints v3.0 - Change Log
+# JoePoints v3.0.1 - Change Log
 
-## Major Security & API Improvements
+## Security Fixes
 
-* API keys are now immediately hashed upon receipt using Argon2ID; raw keys are zeroed in memory to minimize exposure.
-* Argon2ID parameters (time, memory, threads) are stored with each hashed key in the database.
-* DB functions now only accept hashed API keys: `DBAddKey`, `DBRemoveKey`, `DBCheckAuth`; `DBAuthKeyExists` returns the hashed key for use in other DB functions.
-* Hashed API keys are printed in logs instead of raw keys.
-* New DB function and API endpoint added for retrieving a hashed key's identifier.
-* Password hashing and API key handling now fully compliant with updated security practices.
-* Strong CSP implemented across all pages; websites updated to comply.
-* Additional HTTP headers added for security:
+### Rate Limiter Proxy Support
+* **Fixed rate limiter ineffectiveness when behind reverse proxy**
+* `GetClientIP()` now checks `X-Forwarded-For` and `X-Real-IP` headers before falling back to `RemoteAddr`
+* Properly extracts original client IP when behind proxies like nginx, Cloudflare, or other reverse proxies
+* Prevents all clients appearing as the same IP (the proxy's IP) which made rate limiting useless
 
-  * `X-Content-Type-Options: nosniff`
-  * `X-Frame-Options: DENY`
-  * `Referrer-Policy: strict-origin-when-cross-origin`
-  * `Permissions-Policy` configured to minimize browser feature exposure.
-* Removed `Access-Control-Allow-Origin` and CORS options entirely.
-* All API endpoints now use POST to ensure proper request body handling.
-* GET requests with a body are no longer allowed.
-* `GetUID` endpoint now returns a proper JSON object with a `uid` field.
+## Multithreading Improvements and Fixes
 
-## Data Validation & Backend Logic
+### Race Condition in Point Addition
+* **Fixed critical race condition in `handleAddpoints`** where overflow/underflow checks occurred outside the database lock
+* Moved bounds checking into `DBAddPoints()` function where it's protected by the lock
+* Prevents TOCTOU (Time-of-Check-Time-of-Use) vulnerability that could allow point overflows
+* Overflow/underflow validation now happens atomically with the database update
 
-* Server-side string validation allows full UTF-8 characters; length and structural checks remain.
-* Client-side is responsible for escaping HTML and rendering; official frontend guaranteed to handle this safely.
-* JSON encoding/decoding still occurs server-side.
-* Added `validateAndGetUID` helper to reduce code duplication (used in `handleGetUID`, `handleAddPoints`, `handleRemoveUser`).
-* Added `validateAndGetPoints` helper (used in `handleAddPoints` and `handleSetPoints`).
-* User UIDs and internal API key IDs now reuse the lowest available number to prevent gaps.
-* Added bounds checks for UIDs and points to prevent overflows; all point operations ensure resulting sums remain within bounds.
-* Rate limiter can whitelist localhost at compile time.
-* Switched SQLite library to `modernc.org/sqlite` — removes CGO dependency.
-* Migration functions for old keys removed.
-* DB schema updated to store Argon2ID parameters with hashed keys.
-* Internal API key and user ID generation now consistent and predictable.
-* Fixed inconsistencies in `api.go`:
+### Deadlock Prevention
+* **Fixed potential deadlock in `DBAuthKeyExists`**
+* Removed nested `db.QueryRow()` call that could exhaust connection pool while holding read lock
+* Now fetches all required columns (`key_hash`, `salt`, `argon2_time_cost`, `argon2_memory_kb`, `argon2_threads`) in single query
+* Eliminates risk of deadlock from connection pool exhaustion
 
-  * `handleGetAll` now uses `sendJSONResponse`.
-  * `handleRemoveKey` uses `checkAuth`.
-* Updated bearer token extraction to be case-insensitive and allow extra whitespace.
+### Server Lifecycle Management
+* **Added `serverLock` mutex** to protect global `server` variable from concurrent access in `StartServer()` and `StopServer()`
+* **Fixed goroutine leak** in `cleanupIPTable()` - cleanup goroutine now properly terminates on shutdown
+* Added `cleanupDone` channel with select statement for graceful goroutine termination
+* **Added `sync.Once` to `StopServer()`** to prevent panic from closing `cleanupDone` channel multiple times
+* **Switched from `server.Close()` to `server.Shutdown()`** for graceful shutdown with 5-second timeout
+* Ensures active HTTP handlers complete before database cleanup
 
-## Frontend / UI Updates
+### Database Thread Safety
+* **Added lock protection to `DBClose()`** to handle edge case where `server.Shutdown()` timeout expires with active handlers still running
+* Prevents race condition between lingering handlers and database cleanup
 
-* Fully updated GUI admin panel; old CLI page removed.
-* Home and admin pages now handle all escaping client-side to comply with CSP.
-* Frontend adjusted to comply with strengthened security headers.
-* API documentation updated with endpoint changes, request formats, and cURL examples.
-* `serveFile` now solely responsible for vetting paths before serving files; resolves symlinks and includes a boolean option to constrain served files to the `www` directory.
+## Current vulnerabilities
 
-## Miscellaneous Improvements
-
-* Minor reactive fixes to logging, endpoint handling, and API compliance based on pre-release testing.
-* Websites updated to comply with strengthened CSP and other security headers.
-
-## Build & Environment Changes
-
-* Updated `mage.go` build file with new targets:
-
-  * `build` (default) — standard binary, defaults to current OS/Arch unless `GOOS`/`GOARCH` set.
-  * `all` — builds all supported platforms.
-  * `release` — builds all supported platforms and zips each with `www/` folder; requires release version string.
-  * `clean` — removes `build/` folder.
-* Dockerfile no longer requires CGO.
-* `www/` folder now read-only.
-* Resulting container ~6MB smaller.
-* Removed old C version files.
-* Removed `Tools` folder (documentation replaced with `APIDocs.md`).
-* Removed `security.md` (misunderstood purpose).
+### Replay Attacks
+* **Endpoints vulnerable to replay attacks** due to lack of any repeat request protection
+* OAuth2.0 and nonces will be impliemented in the v4.0 release to mitigate this issue
+* For now, ensure use with https reverse proxy to lessen the issue

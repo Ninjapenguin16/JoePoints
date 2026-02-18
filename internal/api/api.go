@@ -516,15 +516,15 @@ func handleAddpoints(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ensures end sum of points is within valid range
-	currentPoints, _ := db.DBGetPoints(uid)
-	if (points > 0 && currentPoints > math.MaxInt32-points) || (points < 0 && currentPoints < math.MinInt32-points) {
-		sendJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "Resulting points would overflow/underflow"})
-		return
-	}
-
+	// DBAddPoints now checks bounds atomically within the lock
 	if err := db.DBAddPoints(uid, points); err != nil {
-		sendJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to add points"})
+		if strings.Contains(err.Error(), "overflow") || strings.Contains(err.Error(), "underflow") {
+			sendJSONResponse(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		} else if strings.Contains(err.Error(), "not found") {
+			sendJSONResponse(w, http.StatusNotFound, map[string]string{"error": "User not found"})
+		} else {
+			sendJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": "Failed to add points"})
+		}
 		return
 	}
 

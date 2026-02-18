@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"io"
 	"joepoints/internal/api"
 	"log/slog"
@@ -26,10 +27,13 @@ const (
 )
 
 var (
-	server  *http.Server
-	ipTable map[string]*ipEntry
-	ipLock  sync.Mutex
-	ticker  *time.Ticker
+	server      *http.Server
+	serverLock  sync.Mutex
+	ipTable     map[string]*ipEntry
+	ipLock      sync.Mutex
+	ticker      *time.Ticker
+	cleanupDone chan struct{}
+	stopOnce    sync.Once
 )
 
 // IP rate limiting entry
@@ -42,6 +46,7 @@ type ipEntry struct {
 // Initialize IP table and start cleanup goroutine
 func init() {
 	ipTable = make(map[string]*ipEntry)
+	cleanupDone = make(chan struct{})
 
 	// Start cleanup goroutine to remove stale IP entries every minute
 	ticker = time.NewTicker(1 * time.Minute)
@@ -50,15 +55,20 @@ func init() {
 
 // Removes IP entries that haven't been reset in over 1 hour
 func cleanupIPTable() {
-	for range ticker.C {
-		ipLock.Lock()
-		now := time.Now()
-		for ip, entry := range ipTable {
-			if now.Sub(entry.lastReset) > 1*time.Hour {
-				delete(ipTable, ip)
+	for {
+		select {
+		case <-ticker.C:
+			ipLock.Lock()
+			now := time.Now()
+			for ip, entry := range ipTable {
+				if now.Sub(entry.lastReset) > 1*time.Hour {
+					delete(ipTable, ip)
+				}
 			}
+			ipLock.Unlock()
+		case <-cleanupDone:
+			return
 		}
-		ipLock.Unlock()
 	}
 }
 
@@ -116,7 +126,25 @@ func checkRateLimit(r *http.Request) bool {
 }
 
 // Extracts the client IP from the request
+// Checks proxy headers first (X-Forwarded-For, X-Real-IP) before falling back to RemoteAddr
 func GetClientIP(r *http.Request) string {
+	// Check X-Forwarded-For header (standard proxy header)
+	// Takes the first IP in the chain (the original client)
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
+		// Take the first one (original client)
+		if idx := strings.Index(xff, ","); idx != -1 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+
+	// Check X-Real-IP header (another common proxy header)
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return strings.TrimSpace(xri)
+	}
+
+	// Fall back to RemoteAddr if no proxy headers present
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
@@ -259,6 +287,7 @@ func StartServer(port int) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", requestHandler)
 
+	serverLock.Lock()
 	server = &http.Server{
 		Addr:           ":" + strconv.Itoa(port),
 		Handler:        mux,
@@ -267,6 +296,7 @@ func StartServer(port int) error {
 		IdleTimeout:    ConnectionTimeout,
 		MaxHeaderBytes: MaxHeaderSize,
 	}
+	serverLock.Unlock()
 
 	slog.Info("Server listening", "port", port)
 
@@ -275,11 +305,21 @@ func StartServer(port int) error {
 
 // Stops the HTTP server gracefully
 func StopServer() {
-	if server != nil {
-		server.Close()
-		server = nil
-	}
-	if ticker != nil {
-		ticker.Stop()
-	}
+	stopOnce.Do(func() {
+		serverLock.Lock()
+		if server != nil {
+			// Use Shutdown for graceful stop - waits for active connections to finish
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			server.Shutdown(ctx)
+			server = nil
+		}
+		serverLock.Unlock()
+
+		if ticker != nil {
+			ticker.Stop()
+			// Signal cleanup goroutine to exit
+			close(cleanupDone)
+		}
+	})
 }
