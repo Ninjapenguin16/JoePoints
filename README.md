@@ -46,7 +46,7 @@ joepoints/<br>
 
 ### Using Go directly
 
-1. Install Go 1.24 or later
+1. Install Go 1.26 or later
 2. Navigate to the project root
 3. Install dependencies:
    ```bash
@@ -196,7 +196,7 @@ docker run -d -p 8080:8080 --name joepoints-server joepoints:latest
 
 ### Image details
 - **Base**: Alpine Linux (minimal)
-- **Build image**: golang:1.25-alpine (discarded after build)
+- **Build image**: golang:1.26-alpine (discarded after build)
 - **Runtime**: Pure Go binary, no CGO dependencies
 - **Size**: ~6MB (optimized)
 - **Exposed port**: 8080 (configurable via `-port` flag)
