@@ -1,4 +1,4 @@
-# JoePoints v3.0 - Go Version
+# JoePoints v3.0.1 - Go Version
 
 A modern, security-hardened points/rewards system written in Go. Features API authentication with hashed keys, user management, and SQLite database storage with web-based admin panel and public leaderboard.
 
