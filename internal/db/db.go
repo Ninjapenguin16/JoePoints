@@ -163,41 +163,52 @@ func DBCreateKey(identifier string) (string, error) {
 
 // Checks if an API key is valid
 func DBAuthKeyExists(key string) (bool, string) {
-	dbLock.RLock()
-	defer dbLock.RUnlock()
+	type keyRecord struct {
+		keyHashHex string
+		saltHex    string
+		timeCost   uint32
+		memoryKB   uint32
+		threads    uint8
+	}
 
+	dbLock.RLock()
 	if db == nil {
+		dbLock.RUnlock()
 		return false, ""
 	}
 
-	// Fetch all needed columns in a single query to avoid nested queries while holding the lock
+	// Snapshot key records under lock, then release lock before expensive hashing.
 	rows, err := db.Query("SELECT key_hash, salt, argon2_time_cost, argon2_memory_kb, argon2_threads FROM keys")
 	if err != nil {
+		dbLock.RUnlock()
 		return false, ""
 	}
-	defer rows.Close()
 
+	records := make([]keyRecord, 0)
 	for rows.Next() {
-		var keyHashHex, saltHex string
-		var timeCost, memoryKB uint32
-		var threads uint8
-		if err := rows.Scan(&keyHashHex, &saltHex, &timeCost, &memoryKB, &threads); err != nil {
+		var rec keyRecord
+		if err := rows.Scan(&rec.keyHashHex, &rec.saltHex, &rec.timeCost, &rec.memoryKB, &rec.threads); err != nil {
 			continue
 		}
+		records = append(records, rec)
+	}
+	rows.Close()
+	dbLock.RUnlock()
 
-		saltRaw, err := crypto.HexDecode(saltHex)
+	for _, rec := range records {
+		saltRaw, err := crypto.HexDecode(rec.saltHex)
 		if err != nil {
 			continue
 		}
 
-		hash, err := crypto.Argon2idKey([]byte(key), saltRaw, uint32(len(keyHashHex)/2), timeCost, memoryKB, threads)
+		hash, err := crypto.Argon2idKey([]byte(key), saltRaw, uint32(len(rec.keyHashHex)/2), rec.timeCost, rec.memoryKB, rec.threads)
 		if err != nil {
 			slog.Error("Key entry with invalid argon2 params", "error", err)
 			continue
 		}
 
-		if crypto.HexEncode(hash) == keyHashHex {
-			return true, keyHashHex
+		if crypto.HexEncode(hash) == rec.keyHashHex {
+			return true, rec.keyHashHex
 		}
 	}
 

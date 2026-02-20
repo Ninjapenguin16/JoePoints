@@ -24,6 +24,7 @@ const (
 	MaxRequestsPerIP   = 30
 	RateLimitWindow    = 15 * time.Second
 	WhitelistLocalhost = false
+	TrustProxyHeaders  = false
 )
 
 var (
@@ -128,20 +129,42 @@ func checkRateLimit(r *http.Request) bool {
 // Extracts the client IP from the request
 // Checks proxy headers first (X-Forwarded-For, X-Real-IP) before falling back to RemoteAddr
 func GetClientIP(r *http.Request) string {
+	if !TrustProxyHeaders {
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			return r.RemoteAddr
+		}
+
+		return ip
+	}
+
 	// Check X-Forwarded-For header (standard proxy header)
 	// Takes the first IP in the chain (the original client)
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		// X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
 		// Take the first one (original client)
 		if idx := strings.Index(xff, ","); idx != -1 {
-			return strings.TrimSpace(xff[:idx])
+			if ip := strings.TrimSpace(xff[:idx]); net.ParseIP(ip) != nil {
+				return ip
+			}
+
+			return ""
 		}
-		return strings.TrimSpace(xff)
+
+		if ip := strings.TrimSpace(xff); net.ParseIP(ip) != nil {
+			return ip
+		}
+
+		return ""
 	}
 
 	// Check X-Real-IP header (another common proxy header)
 	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
+		if ip := strings.TrimSpace(xri); net.ParseIP(ip) != nil {
+			return ip
+		}
+
+		return ""
 	}
 
 	// Fall back to RemoteAddr if no proxy headers present
